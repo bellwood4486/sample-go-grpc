@@ -1,4 +1,4 @@
-# Cancel Sample
+# gRPC Cancel Sample
 
 ## How to run
 
