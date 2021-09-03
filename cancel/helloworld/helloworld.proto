@@ -17,6 +17,7 @@ message HelloReply {
 
 message SleepRequest {
   int32 time_in_sec = 1;
+  bool wantCancel = 2;
 }
 
 message SleepReply {

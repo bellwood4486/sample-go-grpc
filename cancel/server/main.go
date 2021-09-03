@@ -25,10 +25,40 @@ func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloRe
 }
 
 func (s *server) Sleep(ctx context.Context, in *pb.SleepRequest) (*pb.SleepReply, error) {
-	log.Printf("Sleep %d sec...", in.TimeInSec)
-	time.Sleep(time.Duration(in.TimeInSec) * time.Second)
+	d := time.Duration(in.TimeInSec) * time.Second
+	log.Printf("sleep for %v...", d)
 
+	if in.WantCancel {
+		if err := s.sleepCancelable(ctx, d); err != nil {
+			log.Printf("sleep canceled: %v", err)
+			return nil, err
+		}
+	} else {
+		time.Sleep(d)
+	}
+
+	log.Println("sleep success")
 	return &pb.SleepReply{}, nil
+}
+
+func (s *server) sleepCancelable(ctx context.Context, duration time.Duration) error {
+	done := make(chan struct{})
+
+	go func() {
+		defer func() { done <- struct{}{} }()
+		time.Sleep(duration)
+	}()
+
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func main() {
