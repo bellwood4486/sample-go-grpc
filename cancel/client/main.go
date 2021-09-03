@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"sync"
 	"time"
 
 	pb "github.com/bellwood4486/sample-go-grpc/cancel/helloworld"
@@ -21,11 +22,35 @@ func main() {
 	defer conn.Close()
 	c := pb.NewGreeterClient(conn)
 
+	doCancelSample(c)
+	doTimeoutSample(c)
+}
+
+func doCancelSample(c pb.GreeterClient) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	r, err := c.SayHello(ctx, &pb.HelloRequest{Name: "Bob"})
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+		_, err := c.Sleep(ctx, &pb.SleepRequest{TimeInSec: 2})
+		if err != nil {
+			log.Printf("could not sleep: %v", err)
+		}
+	}()
+
+	time.Sleep(time.Second)
+	cancel()
+	wg.Wait()
+}
+
+func doTimeoutSample(c pb.GreeterClient) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	_, err := c.Sleep(ctx, &pb.SleepRequest{TimeInSec: 2})
 	if err != nil {
-		log.Fatalf("could not greet: %v", err)
+		log.Printf("could not sleep: %v", err)
 	}
-	log.Printf("Greeting: %s", r.GetMessage())
 }

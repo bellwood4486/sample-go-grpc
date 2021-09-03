@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net"
+	"time"
 
 	pb "github.com/bellwood4486/sample-go-grpc/cancel/helloworld"
 	"google.golang.org/grpc"
@@ -21,6 +22,13 @@ func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloRe
 	log.Printf("Received: %v", in.GetName())
 
 	return &pb.HelloReply{Message: "Hello " + in.GetName()}, nil
+}
+
+func (s *server) Sleep(ctx context.Context, in *pb.SleepRequest) (*pb.SleepReply, error) {
+	log.Printf("Sleep %d sec...", in.TimeInSec)
+	time.Sleep(time.Duration(in.TimeInSec) * time.Second)
+
+	return &pb.SleepReply{}, nil
 }
 
 func main() {
