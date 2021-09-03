@@ -31,3 +31,7 @@ Enable server side cancel:
 |2021/09/03 22:51:07|could not sleep: rpc error: code = Canceled desc = context canceled|sleep canceled: context canceled|
 |2021/09/03 22:51:09|start timeout sample|sleep for 2s...|
 |2021/09/03 22:51:10|could not sleep: rpc error: code = DeadlineExceeded desc = context deadline exceeded|sleep canceled: context deadline exceeded|
+
+## References
+
+- [gRPC and Deadlines | gRPC](https://grpc.io/blog/deadlines/)
