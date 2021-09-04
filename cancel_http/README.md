@@ -1,5 +1,17 @@
 # Sample for canceling HTTP connection
 
+## Flow
+
+```
+┌─────────────┐            ┌─────────────┐             ┌────────────┐
+│cURL         │            │HTTP server  │             │gRPC server │
+│             ├────────────►             ├─────────────►            │
+│             │GET /sleep  │             │call Sleep   │            │
+│             │    &       │             │             │            │
+└─────────────┘timeout     └─────────────┘             └────────────┘
+                after 2sec
+```
+
 ## How to run
 
 gRPC server
