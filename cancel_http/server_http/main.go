@@ -19,14 +19,14 @@ const (
 
 func main() {
 	http.HandleFunc("/sleep", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("Received: /sleep")
+		log.Println("Received: /sleep")
 		ctx := r.Context()
-		fmt.Println("sleep for 5 seconds...")
+		log.Println("sleep for 5 seconds...")
 		if err := invokeSleep(ctx, 5); err != nil {
 			log.Printf("could not sleep: %v", err)
 			status := http.StatusInternalServerError
 			if errors.Is(ctx.Err(), context.Canceled) {
-				log.Printf("canceled:  %v", err)
+				log.Println("canceled by client")
 				status = http.StatusBadRequest
 			}
 			http.Error(w, fmt.Sprint(err), status)
@@ -48,7 +48,7 @@ func invokeSleep(ctx context.Context, timeInSec int32) error {
 	defer conn.Close()
 	c := pb.NewGreeterClient(conn)
 
-	_, err = c.Sleep(ctx, &pb.SleepRequest{TimeInSec: timeInSec, WantCancel: false})
+	_, err = c.Sleep(ctx, &pb.SleepRequest{TimeInSec: timeInSec, WantCancel: true})
 	if err != nil {
 		return err
 	}
