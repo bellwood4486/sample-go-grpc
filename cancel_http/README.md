@@ -140,8 +140,8 @@ func (s *Stream) waitOnHeader() {
 
 ### gRPC server side
 
-Parse `grpc-timeout` header.
-Set the context with cancel to `transport.Stream`.
+gRPC server parses `grpc-timeout` header.
+If no timeout, it sets the cancel function to `transport.Stream`.
 
 https://github.com/grpc/grpc-go/blob/41e044e1c82fcf6a5801d6cbd7ecf952505eecb1/internal/transport/http2_server.go#L407
 ```go
