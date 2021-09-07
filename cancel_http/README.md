@@ -66,6 +66,8 @@ gRPC server
 
 ## Code
 
+### http server side
+
 The http server calls cancel() in `cr.handleReadError(err)` when the connection closes.
 
 https://github.com/golang/go/blob/bc51e930274a5d5835ac8797978afc0864c9e30c/src/net/http/server.go#L703
@@ -111,6 +113,8 @@ func (cr *connReader) backgroundRead() {
 }
 ```
 
+### gRPC client side
+
 In gRPC client side, a message is received from `<-s.ctx.Done()` in `waitOnHeader()`. Then `ContextErr()` creates an error.
 
 https://github.com/grpc/grpc-go/blob/41e044e1c82fcf6a5801d6cbd7ecf952505eecb1/internal/transport/transport.go#L326
@@ -133,3 +137,87 @@ func (s *Stream) waitOnHeader() {
 	}
 }
 ```
+
+### gRPC server side
+
+Parse `grpc-timeout` header.
+Set the context with cancel to `transport.Stream`.
+
+https://github.com/grpc/grpc-go/blob/41e044e1c82fcf6a5801d6cbd7ecf952505eecb1/internal/transport/http2_server.go#L407
+```go
+// operateHeader takes action on the decoded headers.
+func (t *http2Server) operateHeaders(frame *http2.MetaHeadersFrame, handle func(*Stream), traceCtx func(context.Context, string) context.Context) (fatal bool) {
+...
+	for _, hf := range frame.Fields {
+		switch hf.Name {
+		...
+		case "grpc-timeout":
+			timeoutSet = true
+			var err error
+			if timeout, err = decodeTimeout(hf.Value); err != nil {
+				headerError = true
+			}
+			...
+	}
+
+	...
+	if timeoutSet {
+		s.ctx, s.cancel = context.WithTimeout(t.ctx, timeout)
+	} else {
+		s.ctx, s.cancel = context.WithCancel(t.ctx)
+	}
+```
+
+https://github.com/grpc/grpc-go/blob/41e044e1c82fcf6a5801d6cbd7ecf952505eecb1/internal/transport/transport.go#L242
+```go
+// Stream represents an RPC in the transport layer.
+type Stream struct {
+	...
+	cancel       context.CancelFunc // always nil for client side Stream
+	...
+```
+
+When gPRC server receives RST Frame, it calls `(*http2Server).handleRSTStream` method.
+The method calls `(*http2Server).closeStream`.
+
+https://github.com/grpc/grpc-go/blob/41e044e1c82fcf6a5801d6cbd7ecf952505eecb1/internal/transport/http2_server.go#L581-L582
+```go
+// HandleStreams receives incoming streams using the given handler. This is
+// typically run in a separate goroutine.
+// traceCtx attaches trace to ctx and returns the new context.
+func (t *http2Server) HandleStreams(handle func(*Stream), traceCtx func(context.Context, string) context.Context) {
+		...
+		switch frame := frame.(type) {
+		...
+		case *http2.RSTStreamFrame:
+			t.handleRSTStream(frame)
+```
+
+
+`(*http2Server).closeStream` calls `(*http2Server).deleteStream`.
+
+https://github.com/grpc/grpc-go/blob/41e044e1c82fcf6a5801d6cbd7ecf952505eecb1/internal/transport/http2_server.go#L1209
+```go
+// closeStream clears the footprint of a stream when the stream is not needed any more.
+func (t *http2Server) closeStream(s *Stream, rst bool, rstCode http2.ErrCode, eosReceived bool) {
+	s.swapState(streamDone)
+	t.deleteStream(s, eosReceived)
+
+	...
+}
+```
+
+`(*http2Server).deleteStream` calls `(*Stream).cancel` set above.
+
+https://github.com/grpc/grpc-go/blob/41e044e1c82fcf6a5801d6cbd7ecf952505eecb1/internal/transport/http2_server.go#L1167
+```go
+// deleteStream deletes the stream s from transport's active streams.
+func (t *http2Server) deleteStream(s *Stream, eosReceived bool) {
+	// In case stream sending and receiving are invoked in separate
+	// goroutines (e.g., bi-directional streaming), cancel needs to be
+	// called to interrupt the potential blocking on other goroutines.
+	s.cancel()
+
+	...
+```
+

@@ -30,7 +30,7 @@ func (s *server) Sleep(ctx context.Context, in *pb.SleepRequest) (*pb.SleepReply
 
 	if in.WantCancel {
 		if err := s.sleepCancelable(ctx, d); err != nil {
-			log.Printf("sleep canceled: %v", err)
+			log.Printf("could not sleep: %v", err)
 			return nil, err
 		}
 	} else {
